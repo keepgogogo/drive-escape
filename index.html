@@ -1721,8 +1721,11 @@ async function welcomeSelectCity(name) {
     // 有 URL 参数：跳过欢迎屏，直接加载
     dismissWelcome();
     // 立即用 urlCity 更新标题/图例/搜索框，不等语言文件加载
-    document.getElementById("title-sub").textContent = urlCity;
-    document.getElementById("legend-origin").textContent = urlCity;
+    const _lang = localStorage.getItem('lang') || detectLang();
+    const _subtitleSuffix = { 'zh-CN': '耗时&距离', 'zh-TW': '耗時&距離', 'ja': '所要時間&距離', 'en': 'Time & Distance' }[_lang] || 'Time & Distance';
+    const _originPrefix = { 'zh-CN': '出发市', 'zh-TW': '出發市', 'ja': '出発市', 'en': 'Origin City' }[_lang] || 'Origin City';
+    document.getElementById("title-sub").textContent = `${urlCity} · ${_subtitleSuffix}`;
+    document.getElementById("legend-origin").textContent = `${_originPrefix} (${urlCity})`;
     document.title = urlCity;
     searchInput.value = urlCity;
     showLoading(t('loading') || '...');
