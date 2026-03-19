@@ -439,23 +439,10 @@
     .welcome-city-tag:hover {
       background: rgba(26,110,92,0.18);
     }
-    .welcome-lang-switcher {
+    #welcome-screen .lang-switcher {
       position: absolute;
       top: 16px;
       right: 16px;
-    }
-    .welcome-lang-switcher select {
-      padding: 8px 10px;
-      border: none;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-      font-size: 12px;
-      outline: none;
-      font-family: system-ui, -apple-system, sans-serif;
-      cursor: pointer;
     }
     @media (max-width: 520px) {
       .welcome-card { padding: 32px 24px 28px; }
@@ -466,7 +453,7 @@
 <body>
 
 <div id="welcome-screen">
-  <div class="welcome-lang-switcher">
+  <div class="lang-switcher">
     <select id="welcome-lang-select">
       <option value="zh-CN">简体中文</option>
       <option value="zh-TW">繁體中文</option>
