@@ -47,6 +47,7 @@ const PROVINCES = [
 ];
 
 const failedUrls = [];
+const notFoundUrls = [];
 
 async function download(url, retries = MAX_RETRIES) {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -57,11 +58,19 @@ async function download(url, retries = MAX_RETRIES) {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
+      if (res.status === 404) {
+        const error = new Error(`HTTP 404 - 数据不存在`);
+        error.isNotFound = true;
+        throw error;
+      }
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
       return res.text();
     } catch(e) {
+      if (e.isNotFound) {
+        throw e;
+      }
       if (attempt < retries) {
         console.log(`    重试 ${attempt}/${retries}...`);
         await sleep(RETRY_DELAY_MS);
@@ -93,11 +102,11 @@ async function main() {
   console.log('=== 全国行政区划数据下载 ===\n');
   console.log(`数据目录: ${OUTPUT_DIR}`);
   console.log(`请求间隔: ${DELAY_MS}ms`);
-  console.log(`失败重试: ${MAX_RETRIES} 次\n`);
+  console.log(`失败重试: ${MAX_RETRIES} 次（404 不重试）\n`);
   
   await mkdir(OUTPUT_DIR, { recursive: true });
   
-  let total = 0, skipped = 0, failed = 0;
+  let total = 0, skipped = 0, failed = 0, notFound = 0;
   const startTime = Date.now();
 
   for (const prov of PROVINCES) {
@@ -117,10 +126,16 @@ async function main() {
         total++;
         await sleep(DELAY_MS);
       } catch(e) {
-        console.error(`  省级: ✗ 下载失败 - ${e.message}`);
-        console.error(`  失败URL: ${provUrl}`);
-        failedUrls.push({ name: prov.name, code: prov.code, url: provUrl, error: e.message });
-        failed++;
+        if (e.isNotFound) {
+          console.error(`  省级: ⚠ 数据不存在 (404)`);
+          notFoundUrls.push({ name: prov.name, code: prov.code, url: provUrl, error: '404 数据不存在' });
+          notFound++;
+        } else {
+          console.error(`  省级: ✗ 下载失败 - ${e.message}`);
+          console.error(`  失败URL: ${provUrl}`);
+          failedUrls.push({ name: prov.name, code: prov.code, url: provUrl, error: e.message });
+          failed++;
+        }
         continue;
       }
     }
@@ -131,8 +146,6 @@ async function main() {
       provJson = JSON.parse(provData);
     } catch(e) {
       console.error(`  无法获取省级数据: ${e.message}`);
-      console.error(`  失败URL: ${provUrl}`);
-      failedUrls.push({ name: prov.name, code: prov.code, url: provUrl, error: '无法获取省级数据' });
       continue;
     }
 
@@ -157,10 +170,16 @@ async function main() {
           total++;
           await sleep(DELAY_MS);
         } catch(e) {
-          console.error(`    ${cityName}: ✗ 下载失败 - ${e.message}`);
-          console.error(`    失败URL: ${cityUrl}`);
-          failedUrls.push({ name: cityName, code: cityCode, url: cityUrl, error: e.message });
-          failed++;
+          if (e.isNotFound) {
+            console.error(`    ${cityName}: ⚠ 数据不存在 (404)`);
+            notFoundUrls.push({ name: cityName, code: cityCode, url: cityUrl, error: '404 数据不存在' });
+            notFound++;
+          } else {
+            console.error(`    ${cityName}: ✗ 下载失败 - ${e.message}`);
+            console.error(`    失败URL: ${cityUrl}`);
+            failedUrls.push({ name: cityName, code: cityCode, url: cityUrl, error: e.message });
+            failed++;
+          }
           continue;
         }
       }
@@ -173,6 +192,9 @@ async function main() {
             'User-Agent': 'Mozilla/5.0'
           }
         });
+        if (cityRes.status === 404) {
+          continue;
+        }
         if (!cityRes.ok) throw new Error(`HTTP ${cityRes.status}`);
         cityJson = JSON.parse(await cityRes.text());
         await sleep(DELAY_MS);
@@ -200,10 +222,16 @@ async function main() {
             total++;
             await sleep(DELAY_MS);
           } catch(e) {
-            console.error(`      ${countyName}: ✗ 下载失败 - ${e.message}`);
-            console.error(`      失败URL: ${countyUrl}`);
-            failedUrls.push({ name: countyName, code: countyCode, url: countyUrl, error: e.message });
-            failed++;
+            if (e.isNotFound) {
+              console.error(`      ${countyName}: ⚠ 数据不存在 (404)`);
+              notFoundUrls.push({ name: countyName, code: countyCode, url: countyUrl, error: '404 数据不存在' });
+              notFound++;
+            } else {
+              console.error(`      ${countyName}: ✗ 下载失败 - ${e.message}`);
+              console.error(`      失败URL: ${countyUrl}`);
+              failedUrls.push({ name: countyName, code: countyCode, url: countyUrl, error: e.message });
+              failed++;
+            }
           }
         }
       }
@@ -220,14 +248,26 @@ async function main() {
   console.log('下载完成!');
   console.log(`  成功下载: ${total} 个文件`);
   console.log(`  已存在跳过: ${skipped} 个文件`);
+  console.log(`  数据不存在(404): ${notFound} 个文件`);
   console.log(`  下载失败: ${failed} 个文件`);
   console.log(`  耗时: ${elapsed} 秒`);
   console.log('='.repeat(60));
 
+  if (notFoundUrls.length > 0) {
+    console.log('\n');
+    console.log('='.repeat(60));
+    console.log(`数据不存在的区划 (404) - 共 ${notFoundUrls.length} 个:`);
+    console.log('提示: 这些区划在 DataV API 中不存在，可能是行政区划已变更');
+    console.log('='.repeat(60));
+    for (const item of notFoundUrls) {
+      console.log(`  [${item.name}] (${item.code}) - ${item.url}`);
+    }
+  }
+
   if (failedUrls.length > 0) {
     console.log('\n');
     console.log('='.repeat(60));
-    console.log('失败链接列表（可用于手动排查）:');
+    console.log('下载失败的链接（网络/限流问题）:');
     console.log('='.repeat(60));
     for (const item of failedUrls) {
       console.log(`\n[${item.name}] (${item.code})`);
