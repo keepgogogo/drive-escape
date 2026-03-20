@@ -1,2 +1,4 @@
 .vercel
-.vercel
+data/geo/
+node_modules/
+mission.md

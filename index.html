@@ -951,11 +951,8 @@ document.addEventListener("click", e => {
 });
 
 // ── 数据加载 ──
-// DataV 代理：线上走 /api/geo 代理（避免 CORS/403），本地直连
+// 通过本地服务器代理请求（优先本地缓存，回退 DataV）
 function geoURL(code) {
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    return `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`;
-  }
   return `/api/geo?code=${code}`;
 }
 

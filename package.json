@@ -1,0 +1,16 @@
+{
+  "name": "drive-escape",
+  "version": "1.0.0",
+  "description": "周末自驾逃离计划 - 本地数据缓存服务",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "download": "node scripts/download-geo.js",
+    "update": "node scripts/update-geo.js"
+  },
+  "keywords": ["map", "driving", "geo", "visualization"],
+  "author": "",
+  "license": "MIT"
+}
